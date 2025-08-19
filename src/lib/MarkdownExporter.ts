@@ -118,44 +118,174 @@ export class MarkdownExporter {
   private formatCommandTags(text: string): string {
     // Format command-name tags
     text = text.replace(/<command-name>([^<]+)<\/command-name>/g, (_, cmd) => {
-      return `\n> 💡 **Command**: \`${cmd}\`\n`;
+      return `> 💡 **Command**: \`${cmd}\``;
     });
     
     // Format command-message tags
     text = text.replace(/<command-message>([^<]+)<\/command-message>/g, (_, msg) => {
-      return `> ℹ️ **Status**: ${msg}\n`;
+      return `> ℹ️ **Status**: ${msg}`;
     });
     
     // Format command-args tags
     text = text.replace(/<command-args>([^<]*)<\/command-args>/g, (_, args) => {
       if (args.trim()) {
-        return `> 📝 **Arguments**: \`${args}\`\n`;
+        return `> 📝 **Arguments**: \`${args}\``;
       }
       return '';
     });
     
+    // Clean up whitespace between consecutive blockquotes
+    // Remove any blank lines between blockquotes
+    text = text.replace(/(^|\n)(> [^\n]+)\s*\n+\s*(?=> )/gm, '$1$2\n');
+    
+    // Ensure blockquotes end with proper line breaks  
+    text = text.replace(/(^|\n)(> [^\n]+)$/gm, '$1$2  ');
+    
     // Format local-command-stderr with collapsible section for long errors
     text = text.replace(/<local-command-stderr>([\s\S]*?)<\/local-command-stderr>/g, (_, error) => {
-      const lines = error.trim().split('\n');
+      const trimmedError = error.trim();
+      if (!trimmedError) {
+        return `\n> ⚠️ **Error Output**: (empty)\n`;
+      }
+      
+      const lines = trimmedError.split('\n');
       if (lines.length > 10) {
         // For long errors, show first few lines and make rest collapsible
-        const preview = lines.slice(0, 5).join('\n');
-        return `\n> ⚠️ **Error Output**:\n> \`\`\`\n${preview}\n...\n(${lines.length - 5} more lines)\n\`\`\`\n`;
+        const preview = lines.slice(0, 5).map((line: string) => `> ${line}`).join('\n');
+        return `\n> ⚠️ **Error Output**: \`\`\`\n${preview}\n> ...\n> (${lines.length - 5} more lines)\`\`\`\n`;
       } else {
-        return `\n> ⚠️ **Error Output**:\n> \`\`\`\n${error.trim()}\n\`\`\`\n`;
+        const formattedLines = lines.map((line: string, index: number) => {
+          if (index === lines.length - 1) {
+            return `> ${line}\`\`\``;
+          }
+          return `> ${line}`;
+        }).join('\n');
+        return `\n> ⚠️ **Error Output**: \`\`\`\n${formattedLines}\n`;
       }
     });
     
     // Format local-command-stdout similarly
     text = text.replace(/<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/g, (_, output) => {
-      const lines = output.trim().split('\n');
-      if (lines.length > 10) {
-        const preview = lines.slice(0, 5).join('\n');
-        return `\n> 📤 **Output**:\n> \`\`\`\n${preview}\n...\n(${lines.length - 5} more lines)\n\`\`\`\n`;
-      } else if (output.trim()) {
-        return `\n> 📤 **Output**:\n> \`\`\`\n${output.trim()}\n\`\`\`\n`;
+      const trimmedOutput = output.trim();
+      if (!trimmedOutput) {
+        return `\n> 📤 **Output**: (empty)\n`;
       }
-      return '';
+      
+      const lines = trimmedOutput.split('\n');
+      if (lines.length > 10) {
+        const preview = lines.slice(0, 5).map((line: string) => `> ${line}`).join('\n');
+        return `\n> 📤 **Output**: \`\`\`\n${preview}\n> ...\n> (${lines.length - 5} more lines)\`\`\`\n`;
+      } else {
+        const formattedLines = lines.map((line: string, index: number) => {
+          if (index === lines.length - 1) {
+            return `> ${line}\`\`\``;
+          }
+          return `> ${line}`;
+        }).join('\n');
+        return `\n> 📤 **Output**: \`\`\`\n${formattedLines}\n`;
+      }
+    });
+    
+    return text;
+  }
+
+  private normalizeCodeBlockIndentation(content: string): string {
+    const lines = content.split('\n');
+    
+    // Check if this looks like git status output
+    const gitStatusLines = lines.map(line => 
+      line.match(/^([MADRCU?!]+|\s[MADRCU?!]+)\s+\S/) || 
+      line.match(/^(\?\?|\s\?\?)\s+\S/)
+    );
+    
+    const hasGitStatus = gitStatusLines.some(match => match !== null);
+    
+    if (hasGitStatus) {
+      // Check if we have mixed indentation (some lines with space, some without)
+      const hasIndentedLines = lines.some(line => line.startsWith(' ') && line.trim());
+      const hasUnindentedLines = lines.some(line => !line.startsWith(' ') && line.trim());
+      
+      if (hasIndentedLines && hasUnindentedLines) {
+        // Add space to unindented lines to align them
+        return lines.map(line => {
+          if (line.trim() && !line.startsWith(' ')) {
+            return ' ' + line;
+          }
+          return line;
+        }).join('\n');
+      }
+      return content;
+    }
+    
+    // Check if this looks like git diff stat output
+    const gitDiffStatLines = lines.filter(line => 
+      line.match(/^\s*\S+\.\S+\s+\|\s+\d+/) ||  // File stat lines
+      line.match(/^\s*\d+\s+files?\s+changed/)   // Summary line
+    );
+    
+    if (gitDiffStatLines.length > 0) {
+      // Check for mixed indentation
+      const hasIndentedLines = lines.some(line => line.startsWith(' ') && line.trim());
+      const hasUnindentedLines = lines.some(line => !line.startsWith(' ') && line.trim());
+      
+      if (hasIndentedLines && hasUnindentedLines) {
+        // Add space to unindented lines
+        return lines.map(line => {
+          if (line.trim() && !line.startsWith(' ')) {
+            return ' ' + line;
+          }
+          return line;
+        }).join('\n');
+      }
+      return content;
+    }
+    
+    // Find the minimum indentation (excluding empty lines)
+    let minIndent = Infinity;
+    for (const line of lines) {
+      if (line.trim()) {
+        const leadingSpaces = line.match(/^(\s*)/)?.[1]?.length || 0;
+        minIndent = Math.min(minIndent, leadingSpaces);
+      }
+    }
+    
+    // If all lines have at least one space of common indentation, remove it
+    if (minIndent > 0 && minIndent !== Infinity) {
+      return lines.map(line => {
+        // Preserve empty lines
+        if (!line.trim()) return line;
+        // Remove common indentation
+        return line.substring(minIndent);
+      }).join('\n');
+    }
+    
+    return content;
+  }
+
+  private formatEmptyCodeBlocks(text: string): string {
+    // Detect empty code blocks and replace with (empty code block)
+    text = text.replace(/```(\w*)\n\s*\n```/g, (_match, lang) => {
+      const language = lang || '';
+      return `\`\`\`${language}\n(empty code block)\n\`\`\``;
+    });
+    
+    // Also handle code blocks with only whitespace
+    text = text.replace(/```(\w*)\n(\s+)\n```/g, (match, lang, spaces) => {
+      if (spaces.trim() === '') {
+        const language = lang || '';
+        return `\`\`\`${language}\n(empty code block)\n\`\`\``;
+      }
+      return match;
+    });
+    
+    // Normalize indentation within code blocks
+    text = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_match, lang, content) => {
+      const language = lang || '';
+      if (content.trim()) {
+        const normalized = this.normalizeCodeBlockIndentation(content);
+        return `\`\`\`${language}\n${normalized}\`\`\``;
+      }
+      return `\`\`\`${language}\n${content}\`\`\``;
     });
     
     return text;
@@ -164,12 +294,50 @@ export class MarkdownExporter {
   private formatContentPart(item: ContentPart): string {
     if (item.type === 'text' && item.text) {
       const cleaned = this.cleanMetadata(item.text);
-      return this.formatContinuationSummary(cleaned);
+      const formatted = this.formatContinuationSummary(cleaned);
+      // Check for empty code blocks in regular text content
+      const withEmptyBlocks = this.formatEmptyCodeBlocks(formatted);
+      // Adjust heading levels
+      return this.adjustHeadingLevels(withEmptyBlocks);
     }
     
     if (item.type === 'tool_use') {
       const toolName = item.name || 'Unknown Tool';
-      return `\n🔧 **Tool Use**: ${toolName}\n\`\`\`json\n${JSON.stringify(item.input || {}, null, 2)}\n\`\`\``;
+      let jsonContent = '';
+      
+      try {
+        jsonContent = JSON.stringify(item.input || {}, null, 2);
+      } catch (error) {
+        jsonContent = '(error formatting JSON)';
+      }
+      
+      // Check if JSON is effectively empty
+      if (!item.input || Object.keys(item.input).length === 0) {
+        return [
+          '',
+          `🔧 **Tool Use**: ${toolName}`,
+          '```json',
+          '(empty)',
+          '```'
+        ].join('\n');
+      }
+      
+      // Ensure the JSON content is properly formatted and closed
+      // Sometimes JSON might be truncated or malformed in the source data
+      if (!jsonContent.endsWith('}') && !jsonContent.endsWith(']')) {
+        jsonContent = jsonContent + '\n... (truncated)';
+      }
+      
+      // Use template literal correctly for markdown code block
+      const result = [
+        '',
+        `🔧 **Tool Use**: ${toolName}`,
+        '```json',
+        jsonContent,
+        '```'
+      ].join('\n');
+      
+      return result;
     }
     
     if (item.type === 'tool_result') {
@@ -180,22 +348,119 @@ export class MarkdownExporter {
       // Clean metadata from tool results as well
       if (typeof item.content === 'string') {
         result = this.cleanMetadata(result);
+        // Remove cat -n style line numbers (e.g., "   1→content" or "     2→content")
+        result = this.removeCatLineNumbers(result);
       }
       
-      const truncated = result.length > this.config.maxResultLength 
-        ? result.substring(0, this.config.maxResultLength) + '\n... (truncated)'
-        : result;
+      // Check if content is effectively empty (only whitespace or empty)
+      if (!result.trim()) {
+        return `\n📤 **Tool Result**: (empty result)\n`;
+      }
       
-      return `\n📤 **Tool Result**:\n\`\`\`\n${truncated}\n\`\`\``;
+      // Normalize indentation BEFORE truncation to preserve structure
+      const normalized = this.normalizeCodeBlockIndentation(result);
+      
+      // Check if content appears to be already truncated from source
+      const isAlreadyTruncated = normalized.endsWith('... (truncated)') || 
+                                 normalized.endsWith('(truncated)');
+      
+      // Truncate after normalizing to avoid broken output
+      let finalContent = normalized;
+      if (!isAlreadyTruncated && normalized.length > this.config.maxResultLength) {
+        // Find a good break point to avoid cutting in the middle of a line
+        const cutoff = this.config.maxResultLength;
+        const lastNewline = normalized.lastIndexOf('\n', cutoff);
+        const breakPoint = lastNewline > cutoff - 100 ? lastNewline : cutoff;
+        finalContent = normalized.substring(0, breakPoint) + '\n... (truncated)';
+      }
+      
+      // Check for nested code blocks that might be incomplete
+      // Count opening and closing backticks
+      const backtickMatches = [...finalContent.matchAll(/```/g)];
+      const backtickCount = backtickMatches.length;
+      
+      // If odd number of ```, the code block is not properly closed
+      if (backtickCount % 2 !== 0) {
+        // Find the last ``` position
+        const lastBacktickIndex = finalContent.lastIndexOf('```');
+        // Check if it's an opening backtick (has language identifier or nothing after it)
+        const afterBacktick = finalContent.substring(lastBacktickIndex + 3).trim();
+        if (!afterBacktick || /^[a-z]+$/i.test(afterBacktick.split('\n')[0])) {
+          // It's an unclosed code block, close it before truncation marker
+          finalContent = finalContent + '\n```\n... (truncated)';
+        }
+      }
+      // Ensure proper formatting even if source data was cut off
+      else if (!finalContent.endsWith('... (truncated)') && !finalContent.endsWith('(truncated)')) {
+        // Check if the content appears to be cut off mid-sentence
+        const lines = finalContent.split('\n');
+        const lastLine = lines[lines.length - 1] || '';
+        
+        // Detect incomplete lines (ending with comma, opening paren, etc.)
+        const incompletePatterns = [
+          /,\s*$/,          // Ends with comma
+          /\(\s*$/,         // Ends with opening parenthesis
+          /\[\s*$/,         // Ends with opening bracket
+          /\{\s*$/,         // Ends with opening brace
+          /=\s*$/,          // Ends with equals sign
+          /\+\s*$/,         // Ends with plus sign
+          /->\s*$/,         // Ends with arrow
+          /\|\s*$/,         // Ends with pipe
+          /&&\s*$/,         // Ends with logical AND
+          /\|\|\s*$/,       // Ends with logical OR
+          /:\s*$/,          // Ends with colon
+          /\w+\.\w*$/,      // Ends with incomplete method call
+        ];
+        
+        const isIncomplete = incompletePatterns.some(pattern => pattern.test(lastLine.trim()));
+        
+        if (isIncomplete || (lastLine && !lastLine.trim().match(/[.;}\])]$/))) {
+          // Content appears to be cut off, add truncation marker
+          finalContent = finalContent + '\n... (truncated)';
+        }
+      }
+      
+      return [
+        '',
+        '📤 **Tool Result**:',
+        '```',
+        finalContent,
+        '```'
+      ].join('\n');
     }
     
     return '';
   }
 
+  private removeCatLineNumbers(text: string): string {
+    // Remove cat -n style line numbers (e.g., "     1→content" or "   123→content")
+    // Pattern: optional spaces, number, arrow (→ or tab), then content
+    return text.split('\n').map(line => {
+      // Match lines that start with spaces, number, and arrow/tab
+      const match = line.match(/^\s*\d+[→\t](.*)$/);
+      if (match) {
+        return match[1]; // Return only the content part
+      }
+      return line;
+    }).join('\n');
+  }
+
+  private adjustHeadingLevels(text: string): string {
+    // Adjust heading levels within message content
+    // Convert # to ####, ## to #####, etc.
+    return text.replace(/^(#{1,3})\s/gm, (_match, hashes) => {
+      const newLevel = '#'.repeat(hashes.length + 3);
+      return `${newLevel} `;
+    });
+  }
+
   private formatContent(content: string | unknown): string {
     if (typeof content === 'string') {
       const cleaned = this.cleanMetadata(content);
-      return this.formatContinuationSummary(cleaned);
+      const formatted = this.formatContinuationSummary(cleaned);
+      const withEmptyBlocks = this.formatEmptyCodeBlocks(formatted);
+      // Adjust heading levels in user/assistant messages
+      return this.adjustHeadingLevels(withEmptyBlocks);
     }
     
     if (Array.isArray(content)) {

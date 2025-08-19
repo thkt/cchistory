@@ -10,6 +10,10 @@ CC History (cchistory) is a Node.js CLI tool for browsing and exporting Claude C
 
 ### Installation & Setup
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/cchistory.git
+cd cchistory
+
 # Install dependencies
 npm install
 
@@ -19,7 +23,7 @@ npm run build
 # Run installer (recommended - sets up aliases and builds)
 ./install.sh
 
-# Manual global install
+# Or manual global install
 npm link
 ```
 
@@ -61,6 +65,12 @@ npm run dev
   - Auto-generated from TypeScript source
   - Included in Git for immediate use without building
 
+### Configuration
+- Default export directory: `[project-root]/exports/`
+- Default allowed base path: `~/Tools`
+- Both can be customized via config file
+- Environment variable `CCHISTORY_EXPORT_DIR` overrides default export directory
+
 ### Key Components
 
 1. **Configuration System**
@@ -87,9 +97,9 @@ npm run dev
 - **dayjs**: Date formatting
 
 ### File Locations
-- Source: `~/Tools/cli/cchistory/`
+- Source: Project root directory (wherever you clone it)
 - Config: `~/.config/cchistory/config.json`
-- Exports: `~/Tools/cli/cchistory/exports/` (default)
+- Exports: `[project-root]/exports/` (default, configurable)
 - Claude data: `~/.claude/projects/`
 
 ## Development Notes

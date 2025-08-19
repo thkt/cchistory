@@ -1,6 +1,6 @@
 {
   "name": "cchistory",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "CLI tool to browse and export Claude Code conversation history to Markdown",
   "main": "dist/index.js",
   "type": "module",

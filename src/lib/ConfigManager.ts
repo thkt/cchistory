@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import { homedir } from 'os';
+import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import type { Config } from '../types.js';
 import { sanitizeOutputPath } from '../utils/pathSanitizer.js';
@@ -13,8 +14,18 @@ export class ConfigManager {
   constructor() {
     this.configDir = path.join(homedir(), '.config', 'cchistory');
     this.configFile = path.join(this.configDir, 'config.json');
+    
+    // Get the project root directory (2 levels up from this file)
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const projectRoot = path.resolve(__dirname, '..', '..');
+    
+    // Default to exports directory in the project root
+    const defaultExportDir = process.env.CCHISTORY_EXPORT_DIR || 
+                           path.join(projectRoot, 'exports');
+    
     this.defaultConfig = {
-      exportDir: path.join(homedir(), 'Tools', 'cli', 'cchistory', 'exports'),
+      exportDir: defaultExportDir,
       dateFormat: 'YYYY/MM/DD HH:mm:ss',
       maxPreviewLength: 100,
       maxResultLength: 3000
