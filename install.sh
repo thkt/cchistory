@@ -32,8 +32,13 @@ echo ""
 echo "📦 依存関係をインストール中..."
 npm install --silent
 
+# TypeScriptをビルド
+echo ""
+echo "🔨 TypeScriptをビルド中..."
+npm run build
+
 # 実行権限を付与
-chmod +x index.js
+chmod +x dist/index.js
 
 # シェルの検出と設定
 SHELL_NAME=$(basename "$SHELL")
@@ -61,7 +66,7 @@ echo ""
 echo "🔧 シェル設定を更新中 ($RC_FILE)..."
 
 # エイリアスの追加（重複チェック付き）
-ALIAS_CMD="alias $ALIAS_NAME='node $INSTALL_DIR/index.js'"
+ALIAS_CMD="alias $ALIAS_NAME='node $INSTALL_DIR/dist/index.js'"
 
 if grep -q "alias $ALIAS_NAME=" "$RC_FILE" 2>/dev/null; then
     echo "ℹ️  エイリアスは既に設定されています"

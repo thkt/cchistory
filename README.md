@@ -12,7 +12,8 @@ cd ~/Tools/cli/cchistory
 ```
 
 このスクリプトは以下を自動で行います：
-- npm依存関係のインストール  
+- npm依存関係のインストール
+- TypeScriptのビルド
 - シェルへのエイリアス追加（zsh/bash対応）
 - オプション：グローバルコマンドの設定
 
@@ -21,8 +22,9 @@ cd ~/Tools/cli/cchistory
 ```bash
 cd ~/Tools/cli/cchistory
 npm install
+npm run build
 # zshの場合
-echo "alias cchistory='node ~/Tools/cli/cchistory/index.js'" >> ~/.zshrc
+echo "alias cchistory='node ~/Tools/cli/cchistory/dist/index.js'" >> ~/.zshrc
 source ~/.zshrc
 ```
 
@@ -38,11 +40,8 @@ cd ~/Tools/cli/cchistory
 ### 基本的な使い方
 
 ```bash
-# インタラクティブモード（会話を選択してエクスポート）
-node ~/Tools/cli/cchistory/index.js
-
-# リストモード（会話一覧を表示するだけ）
-node ~/Tools/cli/cchistory/index.js --list
+# 会話を選択してエクスポート
+node ~/Tools/cli/cchistory/dist/index.js
 ```
 
 または、npm linkでグローバルにインストールして使用:
@@ -59,7 +58,6 @@ cchistory
 - インタラクティブな選択UI（矢印キーで選択、ループなし）
 - 選択した会話をマークダウン形式でエクスポート
 - タイムスタンプ、プロジェクト名、会話のプレビューを表示
-- `--list`オプションで会話一覧の確認のみ
 
 ### 設定ファイル
 
@@ -97,6 +95,39 @@ cchistory
 - npm
 - Claude Codeがインストールされ、会話履歴が存在すること
 
+## 開発
+
+このプロジェクトはTypeScriptで書かれています。ビルド済みのJavaScriptファイルがdistディレクトリに含まれているため、ユーザーはビルドなしですぐに使用できます。
+
+### 開発コマンド
+
+```bash
+# TypeScriptをビルド
+npm run build
+
+# ウォッチモードでビルド
+npm run build:watch
+
+# ビルドして実行
+npm run dev
+
+# distディレクトリをクリーン
+npm run clean
+```
+
+### プロジェクト構造
+
+```
+cchistory/
+├── src/                # TypeScriptソースコード
+│   ├── index.ts        # メインエントリーポイント
+│   └── types.ts        # 型定義
+├── dist/               # ビルド済みJavaScript（Gitに含まれる）
+│   └── index.js        # 実行可能ファイル
+├── package.json        # npm設定
+└── tsconfig.json       # TypeScript設定
+```
+
 ## トラブルシューティング
 
 ### 会話が見つからない場合
@@ -109,7 +140,7 @@ Claude Codeの会話履歴は `~/.claude/projects/` ディレクトリに保存�
 スクリプトに実行権限を付与してください：
 
 ```bash
-chmod +x ~/Tools/cli/cchistory/index.js
+chmod +x ~/Tools/cli/cchistory/dist/index.js
 ```
 
 ## ライセンス

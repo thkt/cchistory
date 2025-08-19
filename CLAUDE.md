@@ -13,7 +13,10 @@ CC History (cchistory) is a Node.js CLI tool for browsing and exporting Claude C
 # Install dependencies
 npm install
 
-# Run installer (recommended - sets up aliases)
+# Build TypeScript
+npm run build
+
+# Run installer (recommended - sets up aliases and builds)
 ./install.sh
 
 # Manual global install
@@ -22,14 +25,20 @@ npm link
 
 ### Development & Testing
 ```bash
-# Run the CLI tool
-node index.js
+# Build TypeScript
+npm run build
 
-# Run with list mode
-node index.js --list
+# Build in watch mode
+npm run build:watch
+
+# Run the CLI tool
+node dist/index.js
 
 # Run via npm script
 npm start
+
+# Development mode (build + run)
+npm run dev
 ```
 
 ### Uninstall
@@ -40,11 +49,17 @@ npm start
 ## Architecture
 
 ### Core Structure
-- **index.js**: Main entry point - ESM module with shebang for CLI execution
+- **src/index.ts**: TypeScript source - Main entry point with type safety
   - Loads config from `~/.config/cchistory/config.json`
   - Reads conversations from `~/.claude/projects/`
   - Provides interactive selection UI using inquirer
   - Exports selected conversations to markdown
+  
+- **src/types.ts**: Type definitions for all data structures
+
+- **dist/index.js**: Compiled JavaScript - ESM module with shebang for CLI execution
+  - Auto-generated from TypeScript source
+  - Included in Git for immediate use without building
 
 ### Key Components
 
@@ -79,6 +94,9 @@ npm start
 
 ## Development Notes
 
+### TypeScript
+This project is written in TypeScript for type safety and better IDE support. The compiled JavaScript is included in the repository for immediate use.
+
 ### ES Modules
 This project uses ES modules (`"type": "module"` in package.json). Always use `import` statements, not `require()`.
 
@@ -103,13 +121,16 @@ Install/uninstall scripts support:
 ## Common Tasks
 
 ### Add New Export Format
-Modify the `convertToMarkdown()` function in index.js to support additional output formats.
+Modify the `convertToMarkdown()` function in src/index.ts to support additional output formats. Remember to rebuild after changes.
 
 ### Change Default Configuration
-Update `DEFAULT_CONFIG` object in index.js and document in README.md.
+Update `DEFAULT_CONFIG` object in src/index.ts and document in README.md. Run `npm run build` after changes.
 
 ### Debug Conversation Loading
 Check `loadConversations()` function - add console.log for troubleshooting parsing issues.
 
 ### Extend CLI Options
-Add new options in the main execution block (bottom of index.js) using process.argv parsing.
+Add new options in the main execution block (bottom of src/index.ts) using process.argv parsing.
+
+### Type Updates
+When adding new data structures, update src/types.ts with proper TypeScript interfaces.
